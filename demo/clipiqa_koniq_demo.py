@@ -17,8 +17,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description='ClipIQA demo')
     parser.add_argument('--config', default='configs/clipiqa/clipiqa_attribute_test.py', help='test config file path')
     parser.add_argument('--checkpoint', default=None, help='checkpoint file')
-    parser.add_argument('--file_path', default='/root/4T/dataset/koniq10k/1024x768/', help='path to input image file')
-    parser.add_argument('--csv_path', default='/root/4T/dataset/koniq10k/koniq10k_distributions_sets.csv', help='path to input image file')
+    # parser.add_argument('--file_path', default='/root/4T/dataset/koniq10k/1024x768/', help='path to input image file')
+    # parser.add_argument('--csv_path', default='/root/4T/dataset/koniq10k/koniq10k_distributions_sets.csv', help='path to input image file')
+    parser.add_argument('--file_path', default='./koniq10k_dataset/1024x768/', help='path to input image file')
+    parser.add_argument('--csv_path', default='./koniq10k_dataset/koniq10k_distributions_sets.csv', help='path to input image file')
     parser.add_argument('--device', type=int, default=0, help='CUDA device id')
     args = parser.parse_args()
     return args
@@ -36,21 +38,40 @@ def main():
     txt_path = './koniq_resize.txt'
     y_true = csv_list[csv_list.set=='test'].MOS.values
 
+    # pred_score = []
+    # for i in tqdm(range(len(img_test))):
+    #     output, attributes = restoration_inference(model, os.path.join(args.file_path, img_test['image_name'][i]), return_attributes=True)
+    #     output = output.float().detach().cpu().numpy()
+    #     pred_score.append(attributes[0])
+
+    # pred_score = np.squeeze(np.array(pred_score))*100
+
+
+    # p_srocc = srocc(pred_score, y_true)
+    # p_plcc = plcc(pred_score, y_true)
+
+    # print(args.checkpoint)
+    # print('SRCC: {} | PLCC: {}'.\
+    #       format(p_srocc, p_plcc))
     pred_score = []
     for i in tqdm(range(len(img_test))):
         output, attributes = restoration_inference(model, os.path.join(args.file_path, img_test['image_name'][i]), return_attributes=True)
-        output = output.float().detach().cpu().numpy()
-        pred_score.append(attributes[0])
+        
+        # Ensure attributes[0] is a scalar or consistent shape before appending
+        if isinstance(attributes[0], torch.Tensor):
+            pred_score.append(attributes[0].item())  # Convert single tensor value to a scalar
+        else:
+            pred_score.append(attributes[0])  # Append if it's already a scalar or compatible value
 
-    pred_score = np.squeeze(np.array(pred_score))*100
+    # Now convert pred_score to a numpy array safely
+    pred_score = np.array(pred_score) * 100
 
-
+    # Proceed with the evaluation
     p_srocc = srocc(pred_score, y_true)
     p_plcc = plcc(pred_score, y_true)
 
     print(args.checkpoint)
-    print('SRCC: {} | PLCC: {}'.\
-          format(p_srocc, p_plcc))
+    print('SRCC: {} | PLCC: {}'.format(p_srocc, p_plcc))
 
 
 if __name__ == '__main__':

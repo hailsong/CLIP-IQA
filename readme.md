@@ -82,6 +82,17 @@ python demo/clipiqa_koniq_demo.py --config configs/clipiqa/clipiqa_coop_koniq.py
 #### :sparkles: Demo for Abstract Perception on AVA
 <img src="assets/AVA-exp.png" width="800px"/>
 
+#### :sparkles: Demo for single image (Added by Hail Song)
+[Note] For testing on a single image, please refer to [here](https://github.com/IceClear/CLIP-IQA/tree/main/demo/clipiqa_single_image_demo.py) for details.
+I added some custom dataset and config file to test AVA attributes demo.
+Here's the example of the test command
+```
+python demo/clipiqa_single_image_demo.py --config 'configs/clipiqa/test_config.py' --file_path './custom_dataset/CMU_campus.jpeg'
+```
+```
+python demo/clipiqa_single_image_demo.py --config 'configs/clipiqa/test_config.py' --file_path './custom_dataset/annabelle.jpeg'
+```
+
 For more evaluation, please refer to our [paper](https://arxiv.org/abs/2207.12396) for details.
 
 ### Citation

@@ -20,7 +20,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='ClipIQA demo')
     parser.add_argument('--config', default='configs/clipiqa/clipiqa_attribute_test.py', help='test config file path')
     parser.add_argument('--checkpoint', default=None, help='checkpoint file')
-    parser.add_argument('--file_path', default='/root/4T/dataset/AVA/images-ava/images/935405.jpg', help='path to input image file')
+    parser.add_argument('--file_path', default='./custom_dataset/CMU_campus.jpeg', help='path to input image file')
     parser.add_argument('--device', type=int, default=0, help='CUDA device id')
     args = parser.parse_args()
     return args
@@ -41,7 +41,10 @@ def main():
     output = output.float().detach().cpu().numpy()
     attributes = attributes.float().detach().cpu().numpy()[0]
     print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+    
+    print(attribute_list)
     print(attributes)
+    
 
     attributes = [*attributes, attributes[0]]
 
