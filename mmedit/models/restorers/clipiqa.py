@@ -1,4 +1,4 @@
-# Copyright (c) OpenMMLab. All rights reserved.
+# Copyright (c) OpenMMLab. All rights reserved.8
 import numbers
 import os.path as osp
 
@@ -13,7 +13,7 @@ from ..builder import build_backbone, build_loss
 
 
 @MODELS.register_module()
-class CLIPIQA(BasicRestorer):
+class CLIPIQA(BasicRestorer):# because it inherits basicrestorer, and there is no forward, basic restorer's forward is ran
     """Exploring CLIP for Assessing the Look and Feel of Images
 
     Note that this model is used for CLIPIQA.
@@ -66,7 +66,7 @@ class CLIPIQA(BasicRestorer):
 
         return is_mirror_extended
 
-    def forward_train(self, lq, gt):
+    def forward_train(self, lq, gt,lq_saliency,lq_distortion):
         """Training forward function.
 
         Args:
@@ -77,7 +77,14 @@ class CLIPIQA(BasicRestorer):
             Tensor: Output tensor.
         """
         losses = dict()
-        output, attributes_prob = self.generator(lq)
+        # print(torch.isnan(lq).any(), torch.isnan(gt).any(),torch.isnan(lq_saliency).any(),torch.isnan(lq_distortion).any())  # Should return False, False
+        # print("lq",torch.max(lq), torch.min(lq))  # Check ranges
+        # print("gt",torch.max(gt), torch.min(gt))
+        # print("saliency",torch.max(lq_saliency), torch.min(lq_saliency))
+        # print("distortion",torch.max(lq_distortion), torch.min(lq_distortion))
+        output, attributes_prob = self.generator(lq,lq_saliency,lq_distortion)
+        # print("Output min:", output.min().item(), "Output max:", output.max().item())
+        # print("GT min:", gt.min().item(), "GT max:", gt.max().item())
         loss_pix = self.pixel_loss(output, gt)
         losses['loss_pix'] = loss_pix
         if self.att_klloss:

@@ -8,6 +8,314 @@ from mmcv.fileio import FileClient
 from mmedit.core.mask import (bbox2mask, brush_stroke_mask, get_irregular_mask,
                               random_bbox)
 from ..registry import PIPELINES
+import os.path as osp
+from torchvision import transforms
+from PIL import Image
+import torch
+
+@PIPELINES.register_module()
+class DebugLogger:
+    """Logs intermediate pipeline results to a file in the `work_dir`.
+
+    Args:
+        work_dir (str): Directory where the logs will be saved.
+        filename (str): Name of the log file. Default: 'debug_pipeline.log'.
+        keys (list[str], optional): Keys from `results` to log. If None, logs all keys.
+    """
+
+    def __init__(self, work_dir, filename='debug_pipeline.log', keys=None,image_keys=None):
+        self.work_dir = work_dir
+        self.filename = filename
+        self.keys = keys
+        self.image_keys = image_keys
+        
+
+    def __call__(self, results):
+        log_file = osp.join(self.work_dir, self.filename)
+        with open(log_file, 'a') as f:
+            f.write(f"Processing Results:\n")
+            if self.keys:
+                for key in self.keys:
+                    if key in results:
+                        f.write(f"{key}: {results[key]}\n")
+            else:
+                for key, value in results.items():
+                    f.write(f"{key}: {value}\n")
+            f.write("-" * 80 + "\n")
+
+        if self.image_keys:
+            for image_key in self.image_keys:
+                if image_key in results:
+                    image = results[image_key]
+                    if isinstance(image, list):  # Handle lists of images
+                        for i, img in enumerate(image):
+                            img_save_path = osp.join(self.work_dir, f"{image_key}_{i}.jpg")
+                            mmcv.imwrite(img, img_save_path)
+                    else:
+                        img_save_path = osp.join(self.work_dir, f"{image_key}.jpg")
+                        mmcv.imwrite(image, img_save_path)
+        return results
+
+@PIPELINES.register_module()
+class LoadImageMultiple:
+    """Load image from file.
+
+    Args:
+        io_backend (str): io backend where images are store. Default: 'disk'.
+        key (str): Keys in results to find corresponding path. Default: 'gt'.
+        flag (str): Loading flag for images. Default: 'color'.
+        channel_order (str): Order of channel, candidates are 'bgr' and 'rgb'.
+            Default: 'bgr'.
+        convert_to (str | None): The color space of the output image. If None,
+            no conversion is conducted. Default: None.
+        save_original_img (bool): If True, maintain a copy of the image in
+            `results` dict with name of `f'ori_{key}'`. Default: False.
+        use_cache (bool): If True, load all images at once. Default: False.
+        backend (str): The image loading backend type. Options are `cv2`,
+            `pillow`, and 'turbojpeg'. Default: None.
+        kwargs (dict): Args for file client.
+    """
+
+    def __init__(self,
+                 io_backend='disk',
+                 key='gt',
+                 flag='color',
+                 channel_order='rgb',
+                 convert_to=None,
+                 save_original_img=False,
+                 use_cache=False,
+                 backend=None, salient_patch_dimension=448, n_fragment=12,
+                 **kwargs):
+
+        self.io_backend = io_backend
+        self.key = key
+        self.flag = flag
+        self.save_original_img = save_original_img
+        self.channel_order = channel_order
+        self.convert_to = convert_to
+        self.kwargs = kwargs
+        self.file_client = None
+        self.use_cache = use_cache
+        self.cache = dict() if use_cache else None
+        self.backend = backend
+        self.transform_distortion_preprocessing = transforms.Compose([transforms.ToTensor()])
+        self.salient_patch_dimension = salient_patch_dimension
+        self.transform_saliency = transforms.Compose([
+            transforms.CenterCrop(self.salient_patch_dimension),
+        ])
+        self.n_fragment = n_fragment
+        
+    
+    @staticmethod
+    def get_spatial_fragments(
+        video,
+        fragments_h=7,
+        fragments_w=7,
+        fsize_h=32,
+        fsize_w=32,
+        aligned=32,
+        nfrags=1,
+        random=False,
+        random_upsample=False,
+        fallback_type="upsample",
+        **kwargs,
+    ):
+        size_h = fragments_h * fsize_h
+        size_w = fragments_w * fsize_w
+        ## video: [C,T,H,W]
+        ## situation for images
+        if video.shape[1] == 1:
+            aligned = 1
+
+        dur_t, res_h, res_w = video.shape[-3:]
+        ratio = min(res_h / size_h, res_w / size_w)
+        if fallback_type == "upsample" and ratio < 1:
+            
+            ovideo = video
+            video = torch.nn.functional.interpolate(
+                video / 255.0, scale_factor=1 / ratio, mode="bilinear"
+            )
+            video = (video * 255.0).type_as(ovideo)
+            
+        if random_upsample:
+
+            randratio = random.random() * 0.5 + 1
+            video = torch.nn.functional.interpolate(
+                video / 255.0, scale_factor=randratio, mode="bilinear"
+            )
+            video = (video * 255.0).type_as(ovideo)
+
+
+
+        assert dur_t % aligned == 0, "Please provide match vclip and align index"
+        size = size_h, size_w
+
+        ## make sure that sampling will not run out of the picture
+        hgrids = torch.LongTensor(
+            [min(res_h // fragments_h * i, res_h - fsize_h) for i in range(fragments_h)]
+        )
+        wgrids = torch.LongTensor(
+            [min(res_w // fragments_w * i, res_w - fsize_w) for i in range(fragments_w)]
+        )
+        hlength, wlength = res_h // fragments_h, res_w // fragments_w
+
+        if random:
+            print("This part is deprecated. Please remind that.")
+            if res_h > fsize_h:
+                rnd_h = torch.randint(
+                    res_h - fsize_h, (len(hgrids), len(wgrids), dur_t // aligned)
+                )
+            else:
+                rnd_h = torch.zeros((len(hgrids), len(wgrids), dur_t // aligned)).int()
+            if res_w > fsize_w:
+                rnd_w = torch.randint(
+                    res_w - fsize_w, (len(hgrids), len(wgrids), dur_t // aligned)
+                )
+            else:
+                rnd_w = torch.zeros((len(hgrids), len(wgrids), dur_t // aligned)).int()
+        else:
+            if hlength > fsize_h:
+                rnd_h = torch.randint(
+                    hlength - fsize_h, (len(hgrids), len(wgrids), dur_t // aligned)
+                )
+            else:
+                rnd_h = torch.zeros((len(hgrids), len(wgrids), dur_t // aligned)).int()
+            if wlength > fsize_w:
+                rnd_w = torch.randint(
+                    wlength - fsize_w, (len(hgrids), len(wgrids), dur_t // aligned)
+                )
+            else:
+                rnd_w = torch.zeros((len(hgrids), len(wgrids), dur_t // aligned)).int()
+
+        target_video = torch.zeros(video.shape[:-2] + size).to(video.device)
+        # target_videos = []
+
+        for i, hs in enumerate(hgrids):
+            for j, ws in enumerate(wgrids):
+                for t in range(dur_t // aligned):
+                    t_s, t_e = t * aligned, (t + 1) * aligned
+                    h_s, h_e = i * fsize_h, (i + 1) * fsize_h
+                    w_s, w_e = j * fsize_w, (j + 1) * fsize_w
+                    if random:
+                        h_so, h_eo = rnd_h[i][j][t], rnd_h[i][j][t] + fsize_h
+                        w_so, w_eo = rnd_w[i][j][t], rnd_w[i][j][t] + fsize_w
+                    else:
+                        h_so, h_eo = hs + rnd_h[i][j][t], hs + rnd_h[i][j][t] + fsize_h
+                        w_so, w_eo = ws + rnd_w[i][j][t], ws + rnd_w[i][j][t] + fsize_w
+                    target_video[:, t_s:t_e, h_s:h_e, w_s:w_e] = video[
+                        :, t_s:t_e, h_so:h_eo, w_so:w_eo
+                    ]
+        # target_videos.append(video[:,t_s:t_e,h_so:h_eo,w_so:w_eo])
+        # target_video = torch.stack(target_videos, 0).reshape((dur_t // aligned, fragments, fragments,) + target_videos[0].shape).permute(3,0,4,1,5,2,6)
+        # target_video = target_video.reshape((-1, dur_t,) + size) ## Splicing Fragments
+        return target_video
+
+
+
+    def __call__(self, results):
+        """Call function.
+
+        Args:
+            results (dict): A dict containing the necessary information and
+                data for augmentation.
+
+        Returns:
+            dict: A dict containing the processed data and information.
+        """
+        filepath = str(results[f'{self.key}_path'])
+        if self.file_client is None:
+            self.file_client = FileClient(self.io_backend, **self.kwargs)
+        if self.use_cache:
+            if filepath in self.cache:
+                img = self.cache[filepath]
+            else:
+                img_bytes = self.file_client.get(filepath)
+                img = mmcv.imfrombytes(
+                    img_bytes,
+                    flag=self.flag,
+                    channel_order=self.channel_order,
+                    backend=self.backend)  # HWC
+                self.cache[filepath] = img
+        else:
+            img_bytes = self.file_client.get(filepath)
+            img = mmcv.imfrombytes(
+                img_bytes,
+                flag=self.flag,
+                channel_order=self.channel_order,
+                backend=self.backend)  # HWC
+        # if self.channel_order == 'bgr':
+        #     img = img[..., ::-1]
+        pil_img = Image.fromarray(img.astype('uint8'), 'RGB')
+
+        # Convert NumPy array to PyTorch tensor
+        #img_tensor = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0  # Convert (H, W, C) to (C, H, W)
+
+        # Apply transformations
+        img_saliency = self.transform_saliency(pil_img)
+        img_saliency = np.array(img_saliency)
+
+        #print(f"Pre-transformation img_distortion range: {pil_img.min()} to {pil_img.max()}")
+        img_distortion = self.transform_distortion_preprocessing(pil_img)
+
+        img_distortion = img_distortion.unsqueeze(1)  # Add a dummy dimension for compatibility
+
+
+        # Apply spatial fragment transformation
+        img_distortion = LoadImageMultiple.get_spatial_fragments(
+            img_distortion,
+            fragments_h=self.n_fragment,
+            fragments_w=self.n_fragment,
+            fsize_h=32,
+            fsize_w=32,
+            aligned=32,
+            nfrags=1,
+            random=False,
+            random_upsample=False,
+            fallback_type="upsample"
+        )
+        img_distortion = img_distortion.squeeze(1)  # Remove dummy dimension
+       
+        img_distortion = img_distortion.permute(1,2,0).cpu().numpy()
+        img_distortion = (img_distortion * 255).clip(0, 255).astype(np.uint8)
+
+
+        if self.convert_to is not None:
+            if self.channel_order == 'bgr' and self.convert_to.lower() == 'y':
+                img = mmcv.bgr2ycbcr(img, y_only=True)
+                img_saliency  = mmcv.bgr2ycbcr(img_saliency , y_only=True)
+                img_distortion = mmcv.bgr2ycbcr(img_distortion, y_only=True)
+            elif self.channel_order == 'rgb':
+                img = mmcv.rgb2ycbcr(img, y_only=True)
+                img_saliency  = mmcv.rgb2ycbcr(img_saliency , y_only=True)
+                img_distortion = mmcv.rgb2ycbcr(img_distortion, y_only=True)
+            else:
+                raise ValueError('Currently support only "bgr2ycbcr" or '
+                                 '"bgr2ycbcr".')
+            if img.ndim == 2:
+                img = np.expand_dims(img, axis=2)
+                img_saliency = np.expand_dims(img_saliency, axis=2)
+                img_distortion = np.expand_dims(img_distortion, axis=2)
+
+
+        results[self.key] = img
+        results[f'{self.key}_path'] = filepath
+        results[f'{self.key}_ori_shape'] = img.shape
+        results[f'{self.key}_saliency'] = img_saliency
+        results[f'{self.key}_distortion'] = img_distortion
+        if self.save_original_img:
+            results[f'ori_{self.key}'] = img.copy()
+
+        return results
+    
+    
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += (
+            f'(io_backend={self.io_backend}, key={self.key}, '
+            f'flag={self.flag}, save_original_img={self.save_original_img}, '
+            f'channel_order={self.channel_order}, use_cache={self.use_cache})')
+        return repr_str
+
 
 
 @PIPELINES.register_module()

@@ -65,7 +65,7 @@ class BasicRestorer(BaseModel):
         self.generator.init_weights(pretrained)
 
     @auto_fp16(apply_to=('lq', ))
-    def forward(self, lq, gt=None, test_mode=False, **kwargs):
+    def forward(self, lq, gt,lq_saliency,lq_distortion=None, test_mode=False, **kwargs):
         """Forward function.
 
         Args:
@@ -76,9 +76,9 @@ class BasicRestorer(BaseModel):
         """
 
         if test_mode:
-            return self.forward_test(lq, gt, **kwargs)
+            return self.forward_test(lq, gt, **kwargs) # need to change for testing
 
-        return self.forward_train(lq, gt)
+        return self.forward_train(lq, gt,lq_saliency,lq_distortion)
 
     def forward_train(self, lq, gt):
         """Training forward function.

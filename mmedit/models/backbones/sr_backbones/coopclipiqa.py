@@ -1,4 +1,4 @@
-# Copyright (c) OpenMMLab. All rights reserved.
+# Copyright (c) OpenMMLab. All rights reserved.8
 import numpy as np
 import torch
 import torch.nn as nn
@@ -259,17 +259,38 @@ class CLIPIQAPredictor(nn.Module):
 
             setattr(self, 'clipmodel_{}'.format(i), disc)
         if self.num_clip > 1:
-            self.regressor = NonLinearRegressor(n_input=self.num_clip, n_output=1)
+            self.regressor = NonLinearRegressor(n_input=self.num_clip , n_output=1)
 
-    def forward(self, image):
+    def forward(self, image,lq_saliency,lq_distortion):
         logits_list = []
         for i in range(self.num_clip):
+            logits_per_clip = []
             disc = getattr(self, 'clipmodel_{}'.format(i))
             logits = disc(image)
-            logits_list.append(logits[:, 0].unsqueeze(1))
+            logits_saliency = disc(lq_saliency)
+            logits_distortion = disc(lq_distortion)
+
+            # logits_list.append(logits[:, 0].unsqueeze(1))
+            # logits_list.append(logits_saliency[:, 0].unsqueeze(1))
+            # logits_list.append(logits_distortion[:, 0].unsqueeze(1))
+
+            logits_per_clip.append(logits[:, 0].unsqueeze(1))
+            logits_per_clip.append(logits_saliency[:, 0].unsqueeze(1))
+            logits_per_clip.append(logits_distortion[:, 0].unsqueeze(1))
+            logits_per_clip = torch.cat(logits_per_clip, dim=1).float()
+
+            # print("logts_list_clip shape",logits_per_clip.shape)
+            # print("mean",(logits_per_clip.mean(dim=1, keepdim=True)).shape)
+            # print("orgininal ",(logits[:, 0].unsqueeze(1)).shape)
+            # print("orgininal ",(logits_saliency[:, 0].unsqueeze(1)).shape)
+            # print("orgininal ",(logits_distortion[:, 0].unsqueeze(1)).shape)
+
+            logits_list.append(logits_per_clip.mean(dim=1, keepdim=True))
         logits_list = torch.cat(logits_list, dim=1).float()
-        if self.num_clip > 1:
+        #print("logts_list shape",logits_list.shape)
+        if self.num_clip   > 1:
             pred_score = self.regressor(logits_list)
+            #print("pred_score",pred_score.shape)
             return pred_score, logits_list
         else:
             return logits_list, logits_list

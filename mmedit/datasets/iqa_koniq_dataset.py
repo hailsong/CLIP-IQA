@@ -10,6 +10,8 @@ import numpy as np
 import os
 
 
+
+
 @DATASETS.register_module()
 class IQAKoniqDataset(BaseSRDataset):
 
@@ -21,7 +23,7 @@ class IQAKoniqDataset(BaseSRDataset):
                  test_mode=False):
         super().__init__(pipeline, scale, test_mode)
         self.img_folder = str(img_folder)
-        self.ann_file = pd.read_csv(ann_file, error_bad_lines=True)
+        self.ann_file = pd.read_csv(ann_file, on_bad_lines='skip')
         if test_mode:
             self.data_infos = self.ann_file[self.ann_file.set=='test'].reset_index()
             self.gt_labels = self.ann_file[self.ann_file.set=='test'].MOS.values

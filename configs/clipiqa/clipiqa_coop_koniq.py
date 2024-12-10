@@ -20,26 +20,36 @@ val_dataset_type = 'IQAKoniqDataset'
 
 train_pipeline = [
     dict(
-        type='LoadImageFromFile',
+        type='LoadImageMultiple',
         io_backend='disk',
         key='lq',
         flag='unchanged',
+        save_original_img='True',
         backend='pillow'),
-    dict(type='RescaleToZeroOne', keys=['lq']),
+    # dict(
+    #     type='DebugLogger',
+    #     work_dir=f'./work_dirs/{exp_name}',
+    #     filename='debug_pipeline.log',
+    #     image_keys=['lq', 'ori_lq','lq_saliency','lq_distortion'],
+    #     #keys=['lq', 'gt', 'lq_path']  # Specify keys or set `keys=None` to log everything
+    # ),
+    dict(type='RescaleToZeroOne', keys=['lq','lq_saliency','lq_distortion']),
     dict(
         type='Normalize',
-        keys=['lq'],
+        keys=['lq','lq_saliency','lq_distortion'],
         mean=[0.48145466, 0.4578275, 0.40821073],
         std=[0.26862954, 0.26130258, 0.27577711],
-        to_rgb=True),
+        to_rgb=False),
     # dict(type='Resize', keys=['lq'], scale=1/2, keep_ratio=True),
     dict(
-        type='Flip', keys=['lq'], flip_ratio=0.5,
+        type='Flip', keys=['lq','lq_saliency','lq_distortion'], flip_ratio=0.5,
         direction='horizontal'),
     # dict(type='Flip', keys=['lq'], flip_ratio=0.5, direction='vertical'),
     # dict(type='RandomTransposeHW', keys=['lq'], transpose_ratio=0.5),
-    dict(type='Collect', keys=['lq', 'gt'], meta_keys=['lq_path']),
+    dict(type='Collect', keys=['lq', 'gt','lq_saliency','lq_distortion'], meta_keys=['lq_path']),#choose several from the results and pass to the model
     dict(type='ImageToTensor', keys=['lq']),
+    dict(type='ImageToTensor', keys=['lq_saliency']),
+    dict(type='ImageToTensor', keys=['lq_distortion']),
     dict(type='ToTensor', keys=['gt'])
 ]
 test_pipeline = [
@@ -88,22 +98,22 @@ data = dict(
         times=100,
         dataset=dict(
             type=train_dataset_type,
-            img_folder='/root/4T/dataset/koniq10k/1024x768/',
-            ann_file='/root/4T/dataset/koniq10k/koniq10k_distributions_sets.csv',
+            img_folder='/data/ysun214/wenhan/dannytest_data/koniq10k/1024x768/',
+            ann_file='/data/ysun214/wenhan/dannytest_data/koniq10k/koniq10k_distributions_sets.csv',
             pipeline=train_pipeline,
             test_mode=False)),
     # val
     val=dict(
         type=val_dataset_type,
-        img_folder='/root/4T/dataset/koniq10k/1024x768/',
-        ann_file='/root/4T/dataset/koniq10k/koniq10k_distributions_sets.csv',
+        img_folder='/data/ysun214/wenhan/dannytest_data/koniq10k/1024x768/',
+        ann_file='/data/ysun214/wenhan/dannytest_data/koniq10k/koniq10k_distributions_sets.csv',
         pipeline=test_pipeline,
         test_mode=True),
     # test
     test=dict(
         type=val_dataset_type,
-        img_folder='/root/4T/dataset/koniq10k/1024x768/',
-        ann_file='/root/4T/dataset/koniq10k/koniq10k_distributions_sets.csv',
+        img_folder='/data/ysun214/wenhan/dannytest_data/koniq10k/1024x768/',
+        ann_file='/data/ysun214/wenhan/dannytest_data/koniq10k/koniq10k_distributions_sets.csv',
         pipeline=test_pipeline,
         test_mode=True),
 )
@@ -115,7 +125,7 @@ optimizers = dict(
         lr=0.002))
 
 # learning policy
-total_iters = 500000
+total_iters = 10000#500000
 lr_config = dict(
     policy='CosineRestart',
     by_epoch=False,
@@ -123,11 +133,11 @@ lr_config = dict(
     restart_weights=[1],
     min_lr=1e-7)
 
-checkpoint_config = dict(interval=50000, save_optimizer=True, by_epoch=False)
+checkpoint_config = dict(interval=1000, save_optimizer=True, by_epoch=False)
 # remove gpu_collect=True in non distributed training
 evaluation = dict(interval=10000, save_image=False, gpu_collect=True)
 log_config = dict(
-    interval=100,
+    interval=1, # the intervals 100
     hooks=[
         dict(type='TextLoggerHook', by_epoch=False),
         # dict(type='TensorboardLoggerHook'),
