@@ -1,3 +1,5 @@
+## Our manually created dataset can be found here 
+https://docs.google.com/spreadsheets/d/1cw8lpGUHxRGN2ov90M-eE5-G7g-lly3lXBlyC_ThsyY/edit?usp=sharing
 
 ## Exploring CLIP for Assessing the Look and Feel of Images (AAAI 2023)
 
