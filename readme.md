@@ -1,6 +1,14 @@
 ## Our manually created dataset can be found here 
 https://docs.google.com/spreadsheets/d/1cw8lpGUHxRGN2ov90M-eE5-G7g-lly3lXBlyC_ThsyY/edit?usp=sharing
 
+## Train CLIP-UIQA on KonIQ-10k (added by Eryn)
+
+```
+Switch to the CLIP-UIQA branch
+python tools/train.py configs/clipiqa/clipiqa_coop_koniq.py
+```
+The 10000 iteration log is also in this branch (added by Shiwon)
+
 ## Exploring CLIP for Assessing the Look and Feel of Images (AAAI 2023)
 
 [Paper](https://arxiv.org/abs/2207.12396)
@@ -59,12 +67,7 @@ python demo/clipiqa_liveiwt_demo.py
 python tools/train.py configs/clipiqa/clipiqa_coop_koniq.py
 ```
 
-#### Train CLIP-UIQA on KonIQ-10k (added by Eryn)
 
-```
-Switch to the CLIP-UIQA branch
-python tools/train.py configs/clipiqa/clipiqa_coop_koniq.py
-```
 
 #### Test CLIP-IQA+ on KonIQ-10k ([Checkpoint](https://github.com/IceClear/CLIP-IQA/releases/download/Pretrained/iter_80000.pth))
 
