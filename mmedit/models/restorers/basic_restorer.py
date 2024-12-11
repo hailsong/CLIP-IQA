@@ -76,7 +76,7 @@ class BasicRestorer(BaseModel):
         """
 
         if test_mode:
-            return self.forward_test(lq, gt, **kwargs) # need to change for testing
+            return self.forward_test(lq, gt, lq_saliency,lq_distortion, **kwargs) # need to change for testing
 
         return self.forward_train(lq, gt,lq_saliency,lq_distortion)
 

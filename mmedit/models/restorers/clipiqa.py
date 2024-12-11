@@ -167,7 +167,7 @@ class CLIPIQA(BasicRestorer):# because it inherits basicrestorer, and there is n
 
     def forward_test(self,
                      lq,
-                     gt=None,
+                     gt,lq_saliency,lq_distortion=None,
                      meta=None,
                      save_image=False,
                      save_path=None,
@@ -186,7 +186,7 @@ class CLIPIQA(BasicRestorer):# because it inherits basicrestorer, and there is n
             dict: Output results.
         """
         with torch.no_grad():
-            output, attribute_prob = self.generator(lq)
+            output, attribute_prob = self.generator(lq,lq_saliency,lq_distortion)
 
         output = output
         gt = gt
