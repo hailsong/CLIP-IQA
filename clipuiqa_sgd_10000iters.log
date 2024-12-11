@@ -1,0 +1,370 @@
+2024-12-10 08:41:12,092 - mmedit - INFO - Environment info:
+------------------------------------------------------------
+sys.platform: linux
+Python: 3.8.20 (default, Oct  3 2024, 15:24:27) [GCC 11.2.0]
+CUDA available: True
+GPU 0: NVIDIA A40
+CUDA_HOME: /usr/local/cuda-11.6
+NVCC: Cuda compilation tools, release 11.6, V11.6.124
+GCC: gcc (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0
+PyTorch: 1.13.1+cu116
+PyTorch compiling details: PyTorch built with:
+  - GCC 9.3
+  - C++ Version: 201402
+  - Intel(R) Math Kernel Library Version 2020.0.0 Product Build 20191122 for Intel(R) 64 architecture applications
+  - Intel(R) MKL-DNN v2.6.0 (Git Hash 52b5f107dd9cf10910aaa19cb47f3abf9b349815)
+  - OpenMP 201511 (a.k.a. OpenMP 4.5)
+  - LAPACK is enabled (usually provided by MKL)
+  - NNPACK is enabled
+  - CPU capability usage: AVX2
+  - CUDA Runtime 11.6
+  - NVCC architecture flags: -gencode;arch=compute_37,code=sm_37;-gencode;arch=compute_50,code=sm_50;-gencode;arch=compute_60,code=sm_60;-gencode;arch=compute_70,code=sm_70;-gencode;arch=compute_75,code=sm_75;-gencode;arch=compute_80,code=sm_80;-gencode;arch=compute_86,code=sm_86
+  - CuDNN 8.9.5  (built against CUDA 11.8)
+    - Built with CuDNN 8.3.2
+  - Magma 2.6.1
+  - Build settings: BLAS_INFO=mkl, BUILD_TYPE=Release, CUDA_VERSION=11.6, CUDNN_VERSION=8.3.2, CXX_COMPILER=/opt/rh/devtoolset-9/root/usr/bin/c++, CXX_FLAGS= -fabi-version=11 -Wno-deprecated -fvisibility-inlines-hidden -DUSE_PTHREADPOOL -fopenmp -DNDEBUG -DUSE_KINETO -DUSE_FBGEMM -DUSE_QNNPACK -DUSE_PYTORCH_QNNPACK -DUSE_XNNPACK -DSYMBOLICATE_MOBILE_DEBUG_HANDLE -DEDGE_PROFILER_USE_KINETO -O2 -fPIC -Wno-narrowing -Wall -Wextra -Werror=return-type -Werror=non-virtual-dtor -Wno-missing-field-initializers -Wno-type-limits -Wno-array-bounds -Wno-unknown-pragmas -Wunused-local-typedefs -Wno-unused-parameter -Wno-unused-function -Wno-unused-result -Wno-strict-overflow -Wno-strict-aliasing -Wno-error=deprecated-declarations -Wno-stringop-overflow -Wno-psabi -Wno-error=pedantic -Wno-error=redundant-decls -Wno-error=old-style-cast -fdiagnostics-color=always -faligned-new -Wno-unused-but-set-variable -Wno-maybe-uninitialized -fno-math-errno -fno-trapping-math -Werror=format -Werror=cast-function-type -Wno-stringop-overflow, LAPACK_INFO=mkl, PERF_WITH_AVX=1, PERF_WITH_AVX2=1, PERF_WITH_AVX512=1, TORCH_VERSION=1.13.1, USE_CUDA=ON, USE_CUDNN=ON, USE_EXCEPTION_PTR=1, USE_GFLAGS=OFF, USE_GLOG=OFF, USE_MKL=ON, USE_MKLDNN=ON, USE_MPI=OFF, USE_NCCL=ON, USE_NNPACK=ON, USE_OPENMP=ON, USE_ROCM=OFF, 
+
+TorchVision: 0.14.1+cu116
+OpenCV: 4.10.0
+MMCV: 1.5.0
+MMCV Compiler: GCC 9.4
+MMCV CUDA Compiler: 11.6
+MMEditing: 0.16.1+4cbee26
+------------------------------------------------------------
+
+2024-12-10 08:41:12,092 - mmedit - INFO - Distributed training: False
+2024-12-10 08:41:12,092 - mmedit - INFO - mmedit Version: 0.16.1
+2024-12-10 08:41:12,092 - mmedit - INFO - Config:
+/home/shiwon/2024_CMU/IntroDL/project/CLIP-IQA/configs/clipiqa/clipiqa_coop_koniq.py
+exp_name = 'clip-uiqa_koniq_sgd'
+
+# model settings
+model = dict(
+    type='CLIPIQA',
+    generator=dict(
+        type='CLIPIQAPredictor',
+        backbone_name='RN50',
+        # classnames=[
+        #     ['Good photo.', 'Bad photo.'],
+        # ]),
+        classnames=[
+            ['Aesthetic photo.', 'Not aesthetic photo.'],
+            ['Happy photo.', 'Sad photo.'],
+            ['Natural photo.', 'Synthetic photo.'],
+            ['New photo.', 'Old photo.'],
+            ['Scary photo.', 'Peaceful photo.'],
+            ['Complex photo.', 'Simple photo.'],
+        ]),
+    pixel_loss=dict(type='MSELoss', loss_weight=1.0, reduction='mean'))
+# model training and testing settings
+train_cfg = dict(fix_iter=5000)
+test_cfg = dict(metrics=['L1DIS'], crop_border=0)
+
+# dataset settings
+train_dataset_type = 'IQAKoniqDataset'
+val_dataset_type = 'IQAKoniqDataset'
+
+train_pipeline = [
+    dict(
+        type='LoadImageMultiple',
+        io_backend='disk',
+        key='lq',
+        flag='unchanged',
+        save_original_img='True',
+        backend='pillow'),
+    # dict(
+    #     type='DebugLogger',
+    #     work_dir=f'./work_dirs/{exp_name}',
+    #     filename='debug_pipeline.log',
+    #     image_keys=['lq', 'ori_lq','lq_saliency','lq_distortion'],
+    #     #keys=['lq', 'gt', 'lq_path']  # Specify keys or set `keys=None` to log everything
+    # ),
+    dict(type='RescaleToZeroOne', keys=['lq','lq_saliency','lq_distortion']),
+    dict(
+        type='Normalize',
+        keys=['lq','lq_saliency','lq_distortion'],
+        mean=[0.48145466, 0.4578275, 0.40821073],
+        std=[0.26862954, 0.26130258, 0.27577711],
+        to_rgb=False),
+    # dict(type='Resize', keys=['lq'], scale=1/2, keep_ratio=True),
+    dict(
+        type='Flip', keys=['lq','lq_saliency','lq_distortion'], flip_ratio=0.5,
+        direction='horizontal'),
+    # dict(type='Flip', keys=['lq'], flip_ratio=0.5, direction='vertical'),
+    # dict(type='RandomTransposeHW', keys=['lq'], transpose_ratio=0.5),
+    dict(type='Collect', keys=['lq', 'gt','lq_saliency','lq_distortion'], meta_keys=['lq_path']),#choose several from the results and pass to the model
+    dict(type='ImageToTensor', keys=['lq']),
+    dict(type='ImageToTensor', keys=['lq_saliency']),
+    dict(type='ImageToTensor', keys=['lq_distortion']),
+    dict(type='ToTensor', keys=['gt'])
+]
+test_pipeline = [
+    dict(
+        type='LoadImageFromFile',
+        io_backend='disk',
+        key='lq',
+        flag='unchanged',
+        backend='pillow'),
+    # dict(type='Resize_PIL', keys=['lq'], scale=512, interpolation='bicubic'),
+    dict(type='RescaleToZeroOne', keys=['lq']),
+    dict(
+        type='Normalize',
+        keys=['lq'],
+        mean=[0.48145466, 0.4578275, 0.40821073],
+        std=[0.26862954, 0.26130258, 0.27577711],
+        to_rgb=True),
+    # dict(type='Resize', keys=['lq'], scale=1/4, keep_ratio=True),
+    # dict(type='Resize', keys=['lq'], scale=(224, 224)),
+    dict(type='Collect', keys=['lq', 'gt'], meta_keys=['lq_path']),
+    dict(type='ImageToTensor', keys=['lq']),
+    dict(type='ToTensor', keys=['gt'])
+]
+
+demo_pipeline = [
+    dict(type='GenerateSegmentIndices', interval_list=[1]),
+    dict(
+        type='LoadImageFromFileList',
+        io_backend='disk',
+        key='lq',
+        channel_order='rgb'),
+    dict(type='RescaleToZeroOne', keys=['lq']),
+    dict(type='FramesToTensor', keys=['lq']),
+    dict(type='Collect', keys=['lq'], meta_keys=['lq_path', 'key'])
+]
+
+data = dict(
+    workers_per_gpu=6,
+    train_dataloader=dict(samples_per_gpu=64, drop_last=True),  # 2 gpus
+    val_dataloader=dict(samples_per_gpu=1),
+    test_dataloader=dict(samples_per_gpu=1, workers_per_gpu=1),
+
+    # train
+    train=dict(
+        type='RepeatDataset',
+        times=100,
+        dataset=dict(
+            type=train_dataset_type,
+            img_folder='/home/shiwon/2024_CMU/IntroDL/CLIP-IQA/data/1024x768',
+            ann_file='/home/shiwon/2024_CMU/IntroDL/CLIP-IQA/data/koniq10k_distributions_sets.csv',
+            pipeline=train_pipeline,
+            test_mode=False)),
+    # val
+    val=dict(
+        type=val_dataset_type,
+        img_folder='/home/shiwon/2024_CMU/IntroDL/CLIP-IQA/data/1024x768',
+        ann_file='/home/shiwon/2024_CMU/IntroDL/CLIP-IQA/data/koniq10k_distributions_sets.csv',
+        pipeline=test_pipeline,
+        test_mode=True),
+    # test
+    test=dict(
+        type=val_dataset_type,
+        img_folder='/home/shiwon/2024_CMU/IntroDL/CLIP-IQA/data/1024x768',
+        ann_file='/home/shiwon/2024_CMU/IntroDL/CLIP-IQA/data/koniq10k_distributions_sets.csv',
+        pipeline=test_pipeline,
+        test_mode=True),
+)
+
+# optimizer
+optimizers = dict(
+    generator=dict(
+        type='SGD',
+        lr=0.002))
+
+# optimizers = dict(
+#     generator=dict(
+#         type='AdamW',
+#         lr=0.0002,
+#         weight_decay=0.01
+#     )
+# )
+
+# learning policy
+total_iters = 10000 #500000
+lr_config = dict(
+    policy='CosineRestart',
+    by_epoch=False,
+    periods=[300000],
+    restart_weights=[1],
+    min_lr=1e-7)
+
+# lr_config = dict(
+#     policy='CosineRestart',
+#     by_epoch=False,
+#     periods=[80000],
+#     restart_weights=[1],
+#     min_lr=1e-6
+# )
+
+checkpoint_config = dict(interval=10000, save_optimizer=True, by_epoch=False)
+# remove gpu_collect=True in non distributed training
+evaluation = dict(interval=10000, save_image=False, gpu_collect=True)
+log_config = dict(
+    interval=100, # the intervals 100
+    hooks=[
+        dict(type='TextLoggerHook', by_epoch=False),
+        # dict(type='TensorboardLoggerHook'),
+    ])
+visual_config = None
+
+# runtime settings
+dist_params = dict(backend='nccl')
+log_level = 'INFO'
+work_dir = f'./work_dirs/{exp_name}'
+load_from = None
+resume_from = None
+workflow = [('train', 1)]
+find_unused_parameters = True
+
+2024-12-10 08:41:23,974 - mmedit - INFO - Start running, host: shiwon@79diva, work_dir: /home/shiwon/2024_CMU/IntroDL/project/CLIP-IQA/work_dirs/clip-uiqa_koniq_sgd
+2024-12-10 08:41:23,974 - mmedit - INFO - Hooks will be executed in the following order:
+before_run:
+(VERY_HIGH   ) CosineRestartLrUpdaterHook         
+(NORMAL      ) CheckpointHook                     
+(VERY_LOW    ) TextLoggerHook                     
+ -------------------- 
+before_train_epoch:
+(VERY_HIGH   ) CosineRestartLrUpdaterHook         
+(LOW         ) IterTimerHook                      
+(VERY_LOW    ) TextLoggerHook                     
+ -------------------- 
+before_train_iter:
+(VERY_HIGH   ) CosineRestartLrUpdaterHook         
+(LOW         ) IterTimerHook                      
+ -------------------- 
+after_train_iter:
+(NORMAL      ) CheckpointHook                     
+(LOW         ) IterTimerHook                      
+(LOW         ) EvalIterHook                       
+(VERY_LOW    ) TextLoggerHook                     
+ -------------------- 
+after_train_epoch:
+(NORMAL      ) CheckpointHook                     
+(VERY_LOW    ) TextLoggerHook                     
+ -------------------- 
+before_val_epoch:
+(LOW         ) IterTimerHook                      
+(VERY_LOW    ) TextLoggerHook                     
+ -------------------- 
+before_val_iter:
+(LOW         ) IterTimerHook                      
+ -------------------- 
+after_val_iter:
+(LOW         ) IterTimerHook                      
+ -------------------- 
+after_val_epoch:
+(VERY_LOW    ) TextLoggerHook                     
+ -------------------- 
+after_run:
+(VERY_LOW    ) TextLoggerHook                     
+ -------------------- 
+2024-12-10 08:41:23,974 - mmedit - INFO - workflow: [('train', 1)], max: 10000 iters
+2024-12-10 08:41:23,974 - mmedit - INFO - Checkpoints will be saved to /home/shiwon/2024_CMU/IntroDL/project/CLIP-IQA/work_dirs/clip-uiqa_koniq_sgd by HardDiskBackend.
+2024-12-10 08:49:35,544 - mmedit - INFO - Iter [100/10000]	lr_generator: 2.000e-03, eta: 13:30:38, time: 4.913, data_time: 0.098, memory: 8813, loss_pix: 0.0933, loss: 0.0933
+2024-12-10 08:57:31,444 - mmedit - INFO - Iter [200/10000]	lr_generator: 2.000e-03, eta: 13:09:52, time: 4.759, data_time: 0.009, memory: 8813, loss_pix: 0.0210, loss: 0.0210
+2024-12-10 09:05:29,503 - mmedit - INFO - Iter [300/10000]	lr_generator: 2.000e-03, eta: 12:58:49, time: 4.781, data_time: 0.009, memory: 8813, loss_pix: 0.0157, loss: 0.0157
+2024-12-10 09:13:24,120 - mmedit - INFO - Iter [400/10000]	lr_generator: 2.000e-03, eta: 12:47:56, time: 4.746, data_time: 0.009, memory: 8813, loss_pix: 0.0138, loss: 0.0138
+2024-12-10 09:21:15,718 - mmedit - INFO - Iter [500/10000]	lr_generator: 2.000e-03, eta: 12:37:17, time: 4.716, data_time: 0.009, memory: 8813, loss_pix: 0.0129, loss: 0.0129
+2024-12-10 09:29:06,963 - mmedit - INFO - Iter [600/10000]	lr_generator: 2.000e-03, eta: 12:27:28, time: 4.712, data_time: 0.009, memory: 8813, loss_pix: 0.0115, loss: 0.0115
+2024-12-10 09:36:58,059 - mmedit - INFO - Iter [700/10000]	lr_generator: 2.000e-03, eta: 12:18:11, time: 4.711, data_time: 0.009, memory: 8813, loss_pix: 0.0105, loss: 0.0105
+2024-12-10 09:45:26,962 - mmedit - INFO - Iter [800/10000]	lr_generator: 2.000e-03, eta: 12:16:30, time: 5.089, data_time: 0.010, memory: 8813, loss_pix: 0.0097, loss: 0.0097
+2024-12-10 09:53:56,097 - mmedit - INFO - Iter [900/10000]	lr_generator: 2.000e-03, eta: 12:13:21, time: 5.091, data_time: 0.009, memory: 8813, loss_pix: 0.0098, loss: 0.0098
+2024-12-10 10:02:24,043 - mmedit - INFO - Exp name: clip-uiqa_koniq_sgd
+2024-12-10 10:02:24,044 - mmedit - INFO - Iter [1000/10000]	lr_generator: 2.000e-03, eta: 12:08:57, time: 5.079, data_time: 0.009, memory: 8813, loss_pix: 0.0091, loss: 0.0091
+2024-12-10 10:11:12,810 - mmedit - INFO - Iter [1100/10000]	lr_generator: 2.000e-03, eta: 12:06:38, time: 5.288, data_time: 0.009, memory: 8813, loss_pix: 0.0088, loss: 0.0088
+2024-12-10 10:19:48,881 - mmedit - INFO - Iter [1200/10000]	lr_generator: 2.000e-03, eta: 12:01:40, time: 5.161, data_time: 0.009, memory: 8813, loss_pix: 0.0085, loss: 0.0085
+2024-12-10 10:28:34,199 - mmedit - INFO - Iter [1300/10000]	lr_generator: 2.000e-03, eta: 11:57:10, time: 5.253, data_time: 0.009, memory: 8813, loss_pix: 0.0082, loss: 0.0082
+2024-12-10 10:37:32,650 - mmedit - INFO - Iter [1400/10000]	lr_generator: 2.000e-03, eta: 11:53:25, time: 5.385, data_time: 0.009, memory: 8813, loss_pix: 0.0077, loss: 0.0077
+2024-12-10 10:46:11,839 - mmedit - INFO - Iter [1500/10000]	lr_generator: 2.000e-03, eta: 11:47:09, time: 5.192, data_time: 0.009, memory: 8813, loss_pix: 0.0078, loss: 0.0078
+2024-12-10 10:55:00,043 - mmedit - INFO - Iter [1600/10000]	lr_generator: 2.000e-03, eta: 11:41:22, time: 5.282, data_time: 0.010, memory: 8813, loss_pix: 0.0073, loss: 0.0073
+2024-12-10 11:05:12,890 - mmedit - INFO - Iter [1700/10000]	lr_generator: 2.000e-03, eta: 11:42:07, time: 6.128, data_time: 0.011, memory: 8813, loss_pix: 0.0073, loss: 0.0073
+2024-12-10 11:14:57,896 - mmedit - INFO - Iter [1800/10000]	lr_generator: 2.000e-03, eta: 11:39:33, time: 5.850, data_time: 0.015, memory: 8813, loss_pix: 0.0070, loss: 0.0070
+2024-12-10 11:25:13,776 - mmedit - INFO - Iter [1900/10000]	lr_generator: 2.000e-03, eta: 11:38:24, time: 6.159, data_time: 0.010, memory: 8813, loss_pix: 0.0068, loss: 0.0068
+2024-12-10 11:34:27,582 - mmedit - INFO - Exp name: clip-uiqa_koniq_sgd
+2024-12-10 11:34:27,582 - mmedit - INFO - Iter [2000/10000]	lr_generator: 2.000e-03, eta: 11:32:13, time: 5.538, data_time: 0.009, memory: 8813, loss_pix: 0.0068, loss: 0.0068
+2024-12-10 11:43:33,218 - mmedit - INFO - Iter [2100/10000]	lr_generator: 2.000e-03, eta: 11:25:13, time: 5.456, data_time: 0.010, memory: 8813, loss_pix: 0.0065, loss: 0.0065
+2024-12-10 11:52:33,728 - mmedit - INFO - Iter [2200/10000]	lr_generator: 2.000e-03, eta: 11:17:44, time: 5.405, data_time: 0.009, memory: 8813, loss_pix: 0.0064, loss: 0.0064
+2024-12-10 12:01:34,647 - mmedit - INFO - Iter [2300/10000]	lr_generator: 2.000e-03, eta: 11:10:08, time: 5.409, data_time: 0.009, memory: 8813, loss_pix: 0.0061, loss: 0.0061
+2024-12-10 12:10:35,818 - mmedit - INFO - Iter [2400/10000]	lr_generator: 2.000e-03, eta: 11:02:26, time: 5.412, data_time: 0.009, memory: 8813, loss_pix: 0.0061, loss: 0.0061
+2024-12-10 12:19:42,570 - mmedit - INFO - Iter [2500/10000]	lr_generator: 2.000e-03, eta: 10:54:54, time: 5.468, data_time: 0.009, memory: 8813, loss_pix: 0.0063, loss: 0.0063
+2024-12-10 12:28:55,337 - mmedit - INFO - Iter [2600/10000]	lr_generator: 2.000e-03, eta: 10:47:32, time: 5.528, data_time: 0.009, memory: 8813, loss_pix: 0.0060, loss: 0.0060
+2024-12-10 12:38:17,254 - mmedit - INFO - Iter [2700/10000]	lr_generator: 2.000e-03, eta: 10:40:27, time: 5.619, data_time: 0.009, memory: 8813, loss_pix: 0.0060, loss: 0.0060
+2024-12-10 12:47:19,367 - mmedit - INFO - Iter [2800/10000]	lr_generator: 2.000e-03, eta: 10:32:21, time: 5.421, data_time: 0.009, memory: 8813, loss_pix: 0.0062, loss: 0.0062
+2024-12-10 12:56:28,297 - mmedit - INFO - Iter [2900/10000]	lr_generator: 2.000e-03, eta: 10:24:28, time: 5.489, data_time: 0.009, memory: 8813, loss_pix: 0.0061, loss: 0.0061
+2024-12-10 13:05:41,003 - mmedit - INFO - Exp name: clip-uiqa_koniq_sgd
+2024-12-10 13:05:41,003 - mmedit - INFO - Iter [3000/10000]	lr_generator: 2.000e-03, eta: 10:16:38, time: 5.527, data_time: 0.009, memory: 8813, loss_pix: 0.0060, loss: 0.0060
+2024-12-10 13:14:38,528 - mmedit - INFO - Iter [3100/10000]	lr_generator: 1.999e-03, eta: 10:08:10, time: 5.375, data_time: 0.009, memory: 8813, loss_pix: 0.0057, loss: 0.0057
+2024-12-10 13:23:34,143 - mmedit - INFO - Iter [3200/10000]	lr_generator: 1.999e-03, eta: 9:59:35, time: 5.356, data_time: 0.009, memory: 8813, loss_pix: 0.0056, loss: 0.0056
+2024-12-10 13:32:41,935 - mmedit - INFO - Iter [3300/10000]	lr_generator: 1.999e-03, eta: 9:51:24, time: 5.478, data_time: 0.013, memory: 8813, loss_pix: 0.0056, loss: 0.0056
+2024-12-10 13:42:15,063 - mmedit - INFO - Iter [3400/10000]	lr_generator: 1.999e-03, eta: 9:43:59, time: 5.731, data_time: 0.010, memory: 8813, loss_pix: 0.0056, loss: 0.0056
+2024-12-10 13:51:36,563 - mmedit - INFO - Iter [3500/10000]	lr_generator: 1.999e-03, eta: 9:36:05, time: 5.615, data_time: 0.009, memory: 8813, loss_pix: 0.0058, loss: 0.0058
+2024-12-10 14:00:49,969 - mmedit - INFO - Iter [3600/10000]	lr_generator: 1.999e-03, eta: 9:27:52, time: 5.534, data_time: 0.009, memory: 8813, loss_pix: 0.0056, loss: 0.0056
+2024-12-10 14:14:45,806 - mmedit - INFO - Iter [3700/10000]	lr_generator: 1.999e-03, eta: 9:27:36, time: 8.358, data_time: 0.009, memory: 8813, loss_pix: 0.0056, loss: 0.0056
+2024-12-10 14:25:22,632 - mmedit - INFO - Iter [3800/10000]	lr_generator: 1.999e-03, eta: 9:21:13, time: 6.368, data_time: 0.009, memory: 8813, loss_pix: 0.0054, loss: 0.0054
+2024-12-10 14:37:27,767 - mmedit - INFO - Iter [3900/10000]	lr_generator: 1.999e-03, eta: 9:16:54, time: 7.251, data_time: 0.010, memory: 8813, loss_pix: 0.0055, loss: 0.0055
+2024-12-10 14:49:58,112 - mmedit - INFO - Exp name: clip-uiqa_koniq_sgd
+2024-12-10 14:49:58,113 - mmedit - INFO - Iter [4000/10000]	lr_generator: 1.999e-03, eta: 9:12:50, time: 7.503, data_time: 0.010, memory: 8813, loss_pix: 0.0054, loss: 0.0054
+2024-12-10 15:01:34,463 - mmedit - INFO - Iter [4100/10000]	lr_generator: 1.999e-03, eta: 9:07:04, time: 6.964, data_time: 0.009, memory: 8813, loss_pix: 0.0056, loss: 0.0056
+2024-12-10 15:13:56,876 - mmedit - INFO - Iter [4200/10000]	lr_generator: 1.999e-03, eta: 9:02:04, time: 7.424, data_time: 0.009, memory: 8813, loss_pix: 0.0054, loss: 0.0054
+2024-12-10 15:26:05,583 - mmedit - INFO - Iter [4300/10000]	lr_generator: 1.999e-03, eta: 8:56:26, time: 7.287, data_time: 0.010, memory: 8813, loss_pix: 0.0052, loss: 0.0052
+2024-12-10 15:38:42,824 - mmedit - INFO - Iter [4400/10000]	lr_generator: 1.999e-03, eta: 8:51:07, time: 7.572, data_time: 0.010, memory: 8813, loss_pix: 0.0053, loss: 0.0053
+2024-12-10 15:50:41,500 - mmedit - INFO - Iter [4500/10000]	lr_generator: 1.999e-03, eta: 8:44:40, time: 7.187, data_time: 0.010, memory: 8813, loss_pix: 0.0053, loss: 0.0053
+2024-12-10 16:02:04,609 - mmedit - INFO - Iter [4600/10000]	lr_generator: 1.999e-03, eta: 8:37:18, time: 6.831, data_time: 0.010, memory: 8813, loss_pix: 0.0051, loss: 0.0051
+2024-12-10 16:13:59,911 - mmedit - INFO - Iter [4700/10000]	lr_generator: 1.999e-03, eta: 8:30:22, time: 7.153, data_time: 0.010, memory: 8813, loss_pix: 0.0055, loss: 0.0055
+2024-12-10 16:24:04,835 - mmedit - INFO - Iter [4800/10000]	lr_generator: 1.999e-03, eta: 8:21:13, time: 6.049, data_time: 0.010, memory: 8813, loss_pix: 0.0052, loss: 0.0052
+2024-12-10 16:37:22,678 - mmedit - INFO - Iter [4900/10000]	lr_generator: 1.999e-03, eta: 8:15:23, time: 7.978, data_time: 0.011, memory: 8813, loss_pix: 0.0052, loss: 0.0052
+2024-12-10 16:49:49,803 - mmedit - INFO - Exp name: clip-uiqa_koniq_sgd
+2024-12-10 16:49:49,804 - mmedit - INFO - Iter [5000/10000]	lr_generator: 1.999e-03, eta: 8:08:25, time: 7.471, data_time: 0.010, memory: 8813, loss_pix: 0.0052, loss: 0.0052
+2024-12-10 17:02:57,186 - mmedit - INFO - Iter [5100/10000]	lr_generator: 1.999e-03, eta: 8:01:52, time: 7.874, data_time: 0.010, memory: 8813, loss_pix: 0.0051, loss: 0.0051
+2024-12-10 17:15:51,090 - mmedit - INFO - Iter [5200/10000]	lr_generator: 1.999e-03, eta: 7:54:52, time: 7.739, data_time: 0.010, memory: 8813, loss_pix: 0.0052, loss: 0.0052
+2024-12-10 17:28:26,217 - mmedit - INFO - Iter [5300/10000]	lr_generator: 1.998e-03, eta: 7:47:22, time: 7.551, data_time: 0.010, memory: 8813, loss_pix: 0.0050, loss: 0.0050
+2024-12-10 17:40:43,810 - mmedit - INFO - Iter [5400/10000]	lr_generator: 1.998e-03, eta: 7:39:25, time: 7.376, data_time: 0.010, memory: 8813, loss_pix: 0.0051, loss: 0.0051
+2024-12-10 17:53:55,190 - mmedit - INFO - Iter [5500/10000]	lr_generator: 1.998e-03, eta: 7:32:03, time: 7.914, data_time: 0.010, memory: 8813, loss_pix: 0.0053, loss: 0.0053
+2024-12-10 18:03:43,365 - mmedit - INFO - Iter [5600/10000]	lr_generator: 1.998e-03, eta: 7:21:49, time: 5.882, data_time: 0.009, memory: 8813, loss_pix: 0.0050, loss: 0.0050
+2024-12-10 18:13:15,234 - mmedit - INFO - Iter [5700/10000]	lr_generator: 1.998e-03, eta: 7:11:23, time: 5.719, data_time: 0.009, memory: 8813, loss_pix: 0.0049, loss: 0.0049
+2024-12-10 18:23:06,196 - mmedit - INFO - Iter [5800/10000]	lr_generator: 1.998e-03, eta: 7:01:13, time: 5.910, data_time: 0.009, memory: 8813, loss_pix: 0.0051, loss: 0.0051
+2024-12-10 18:32:06,304 - mmedit - INFO - Iter [5900/10000]	lr_generator: 1.998e-03, eta: 6:50:29, time: 5.401, data_time: 0.009, memory: 8813, loss_pix: 0.0050, loss: 0.0050
+2024-12-10 18:41:52,864 - mmedit - INFO - Exp name: clip-uiqa_koniq_sgd
+2024-12-10 18:41:52,864 - mmedit - INFO - Iter [6000/10000]	lr_generator: 1.998e-03, eta: 6:40:19, time: 5.866, data_time: 0.009, memory: 8813, loss_pix: 0.0049, loss: 0.0049
+2024-12-10 18:51:15,380 - mmedit - INFO - Iter [6100/10000]	lr_generator: 1.998e-03, eta: 6:29:54, time: 5.625, data_time: 0.010, memory: 8813, loss_pix: 0.0049, loss: 0.0049
+2024-12-10 19:00:50,099 - mmedit - INFO - Iter [6200/10000]	lr_generator: 1.998e-03, eta: 6:19:39, time: 5.747, data_time: 0.009, memory: 8813, loss_pix: 0.0051, loss: 0.0051
+2024-12-10 19:09:54,242 - mmedit - INFO - Iter [6300/10000]	lr_generator: 1.998e-03, eta: 6:09:07, time: 5.441, data_time: 0.009, memory: 8813, loss_pix: 0.0050, loss: 0.0050
+2024-12-10 19:19:26,337 - mmedit - INFO - Iter [6400/10000]	lr_generator: 1.998e-03, eta: 5:58:53, time: 5.721, data_time: 0.009, memory: 8813, loss_pix: 0.0047, loss: 0.0047
+2024-12-10 19:28:47,471 - mmedit - INFO - Iter [6500/10000]	lr_generator: 1.998e-03, eta: 5:48:35, time: 5.611, data_time: 0.009, memory: 8813, loss_pix: 0.0050, loss: 0.0050
+2024-12-10 19:38:17,365 - mmedit - INFO - Iter [6600/10000]	lr_generator: 1.998e-03, eta: 5:38:23, time: 5.699, data_time: 0.009, memory: 8813, loss_pix: 0.0048, loss: 0.0048
+2024-12-10 19:47:30,621 - mmedit - INFO - Iter [6700/10000]	lr_generator: 1.998e-03, eta: 5:28:04, time: 5.533, data_time: 0.009, memory: 8813, loss_pix: 0.0049, loss: 0.0049
+2024-12-10 19:57:16,793 - mmedit - INFO - Iter [6800/10000]	lr_generator: 1.997e-03, eta: 5:18:03, time: 5.862, data_time: 0.009, memory: 8813, loss_pix: 0.0048, loss: 0.0048
+2024-12-10 20:06:52,725 - mmedit - INFO - Iter [6900/10000]	lr_generator: 1.997e-03, eta: 5:07:57, time: 5.759, data_time: 0.009, memory: 8813, loss_pix: 0.0047, loss: 0.0047
+2024-12-10 20:16:02,909 - mmedit - INFO - Exp name: clip-uiqa_koniq_sgd
+2024-12-10 20:16:02,909 - mmedit - INFO - Iter [7000/10000]	lr_generator: 1.997e-03, eta: 4:57:42, time: 5.502, data_time: 0.010, memory: 8813, loss_pix: 0.0050, loss: 0.0050
+2024-12-10 20:26:57,011 - mmedit - INFO - Iter [7100/10000]	lr_generator: 1.997e-03, eta: 4:48:10, time: 6.541, data_time: 0.010, memory: 8813, loss_pix: 0.0048, loss: 0.0048
+2024-12-10 20:36:07,522 - mmedit - INFO - Iter [7200/10000]	lr_generator: 1.997e-03, eta: 4:37:56, time: 5.505, data_time: 0.009, memory: 8813, loss_pix: 0.0050, loss: 0.0050
+2024-12-10 20:46:54,963 - mmedit - INFO - Iter [7300/10000]	lr_generator: 1.997e-03, eta: 4:28:20, time: 6.474, data_time: 0.009, memory: 8813, loss_pix: 0.0048, loss: 0.0048
+2024-12-10 20:56:11,855 - mmedit - INFO - Iter [7400/10000]	lr_generator: 1.997e-03, eta: 4:18:10, time: 5.569, data_time: 0.009, memory: 8813, loss_pix: 0.0048, loss: 0.0048
+2024-12-10 21:06:43,413 - mmedit - INFO - Iter [7500/10000]	lr_generator: 1.997e-03, eta: 4:08:26, time: 6.316, data_time: 0.009, memory: 8813, loss_pix: 0.0049, loss: 0.0049
+2024-12-10 21:16:58,814 - mmedit - INFO - Iter [7600/10000]	lr_generator: 1.997e-03, eta: 3:58:36, time: 6.154, data_time: 0.009, memory: 8813, loss_pix: 0.0048, loss: 0.0048
+2024-12-10 21:26:32,593 - mmedit - INFO - Iter [7700/10000]	lr_generator: 1.997e-03, eta: 3:48:32, time: 5.738, data_time: 0.009, memory: 8813, loss_pix: 0.0049, loss: 0.0049
+2024-12-10 21:35:59,579 - mmedit - INFO - Iter [7800/10000]	lr_generator: 1.997e-03, eta: 3:38:28, time: 5.670, data_time: 0.009, memory: 8813, loss_pix: 0.0048, loss: 0.0048
+2024-12-10 21:45:44,352 - mmedit - INFO - Iter [7900/10000]	lr_generator: 1.997e-03, eta: 3:28:29, time: 5.848, data_time: 0.009, memory: 8813, loss_pix: 0.0048, loss: 0.0048
+2024-12-10 21:54:48,640 - mmedit - INFO - Exp name: clip-uiqa_koniq_sgd
+2024-12-10 21:54:48,640 - mmedit - INFO - Iter [8000/10000]	lr_generator: 1.996e-03, eta: 3:18:21, time: 5.443, data_time: 0.009, memory: 8813, loss_pix: 0.0048, loss: 0.0048
+2024-12-10 22:04:32,411 - mmedit - INFO - Iter [8100/10000]	lr_generator: 1.996e-03, eta: 3:08:23, time: 5.838, data_time: 0.009, memory: 8813, loss_pix: 0.0049, loss: 0.0049
+2024-12-10 22:13:54,752 - mmedit - INFO - Iter [8200/10000]	lr_generator: 1.996e-03, eta: 2:58:21, time: 5.623, data_time: 0.009, memory: 8813, loss_pix: 0.0046, loss: 0.0046
+2024-12-10 22:23:29,558 - mmedit - INFO - Iter [8300/10000]	lr_generator: 1.996e-03, eta: 2:48:22, time: 5.748, data_time: 0.009, memory: 8813, loss_pix: 0.0047, loss: 0.0047
+2024-12-10 22:31:42,438 - mmedit - INFO - Iter [8400/10000]	lr_generator: 1.996e-03, eta: 2:38:09, time: 4.929, data_time: 0.009, memory: 8813, loss_pix: 0.0047, loss: 0.0047
+2024-12-10 22:39:34,384 - mmedit - INFO - Iter [8500/10000]	lr_generator: 1.996e-03, eta: 2:27:54, time: 4.719, data_time: 0.009, memory: 8813, loss_pix: 0.0046, loss: 0.0046
+2024-12-10 22:47:25,929 - mmedit - INFO - Iter [8600/10000]	lr_generator: 1.996e-03, eta: 2:17:43, time: 4.715, data_time: 0.009, memory: 8813, loss_pix: 0.0047, loss: 0.0047
+2024-12-10 22:55:17,294 - mmedit - INFO - Iter [8700/10000]	lr_generator: 1.996e-03, eta: 2:07:35, time: 4.714, data_time: 0.009, memory: 8813, loss_pix: 0.0046, loss: 0.0046
+2024-12-10 23:03:08,823 - mmedit - INFO - Iter [8800/10000]	lr_generator: 1.996e-03, eta: 1:57:30, time: 4.715, data_time: 0.009, memory: 8813, loss_pix: 0.0045, loss: 0.0045
+2024-12-10 23:11:00,628 - mmedit - INFO - Iter [8900/10000]	lr_generator: 1.996e-03, eta: 1:47:28, time: 4.718, data_time: 0.009, memory: 8813, loss_pix: 0.0046, loss: 0.0046
+2024-12-10 23:18:52,258 - mmedit - INFO - Exp name: clip-uiqa_koniq_sgd
+2024-12-10 23:18:52,259 - mmedit - INFO - Iter [9000/10000]	lr_generator: 1.996e-03, eta: 1:37:29, time: 4.716, data_time: 0.009, memory: 8813, loss_pix: 0.0046, loss: 0.0046
+2024-12-10 23:26:43,837 - mmedit - INFO - Iter [9100/10000]	lr_generator: 1.995e-03, eta: 1:27:33, time: 4.716, data_time: 0.009, memory: 8813, loss_pix: 0.0048, loss: 0.0048
+2024-12-10 23:34:35,352 - mmedit - INFO - Iter [9200/10000]	lr_generator: 1.995e-03, eta: 1:17:40, time: 4.715, data_time: 0.009, memory: 8813, loss_pix: 0.0046, loss: 0.0046
+2024-12-10 23:42:27,041 - mmedit - INFO - Iter [9300/10000]	lr_generator: 1.995e-03, eta: 1:07:49, time: 4.717, data_time: 0.009, memory: 8813, loss_pix: 0.0047, loss: 0.0047
+2024-12-10 23:50:18,311 - mmedit - INFO - Iter [9400/10000]	lr_generator: 1.995e-03, eta: 0:58:00, time: 4.713, data_time: 0.009, memory: 8813, loss_pix: 0.0048, loss: 0.0048
+2024-12-10 23:58:10,079 - mmedit - INFO - Iter [9500/10000]	lr_generator: 1.995e-03, eta: 0:48:15, time: 4.718, data_time: 0.009, memory: 8813, loss_pix: 0.0047, loss: 0.0047
+2024-12-11 00:06:02,040 - mmedit - INFO - Iter [9600/10000]	lr_generator: 1.995e-03, eta: 0:38:31, time: 4.720, data_time: 0.009, memory: 8813, loss_pix: 0.0046, loss: 0.0046
+2024-12-11 00:13:53,617 - mmedit - INFO - Iter [9700/10000]	lr_generator: 1.995e-03, eta: 0:28:50, time: 4.716, data_time: 0.009, memory: 8813, loss_pix: 0.0047, loss: 0.0047
+2024-12-11 00:21:44,858 - mmedit - INFO - Iter [9800/10000]	lr_generator: 1.995e-03, eta: 0:19:11, time: 4.712, data_time: 0.009, memory: 8813, loss_pix: 0.0045, loss: 0.0045
+2024-12-11 00:29:36,508 - mmedit - INFO - Iter [9900/10000]	lr_generator: 1.995e-03, eta: 0:09:34, time: 4.716, data_time: 0.009, memory: 8813, loss_pix: 0.0047, loss: 0.0047
+2024-12-11 00:37:28,079 - mmedit - INFO - Saving checkpoint at 10000 iterations
