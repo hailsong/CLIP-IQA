@@ -59,6 +59,13 @@ python demo/clipiqa_liveiwt_demo.py
 python tools/train.py configs/clipiqa/clipiqa_coop_koniq.py
 ```
 
+#### Train CLIP-UIQA+ on KonIQ-10k (added by Eryn)
+
+```
+Switch to the CLIP-UIQA branch
+python tools/train.py configs/clipiqa/clipiqa_coop_koniq.py
+```
+
 #### Test CLIP-IQA+ on KonIQ-10k ([Checkpoint](https://github.com/IceClear/CLIP-IQA/releases/download/Pretrained/iter_80000.pth))
 
 ```
