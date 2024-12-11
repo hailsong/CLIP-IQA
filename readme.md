@@ -59,7 +59,7 @@ python demo/clipiqa_liveiwt_demo.py
 python tools/train.py configs/clipiqa/clipiqa_coop_koniq.py
 ```
 
-#### Train CLIP-UIQA+ on KonIQ-10k (added by Eryn)
+#### Train CLIP-UIQA on KonIQ-10k (added by Eryn)
 
 ```
 Switch to the CLIP-UIQA branch
